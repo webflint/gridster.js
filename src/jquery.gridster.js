@@ -19,7 +19,6 @@
         min_cols: 1,
         max_cols: 60,
         min_rows: 15,
-        max_rows: 15,
         max_size_x: 6,
         autogenerate_stylesheet: true,
         avoid_overlapped_widgets: true,
@@ -36,9 +35,11 @@
         draggable: {
             distance: 4,
             items: ".gs_w:not(.static)"
-        }
+        },
+        style_tag_id_prefix: 'gridster-style-tags-'
     };
 
+    var instanceCounter = 0;
 
     /**
     * @class Gridster
@@ -61,7 +62,10 @@
     *    @param {Number} [options.extra_rows] Add more rows in addition to
     *     those that have been calculated.
     *    @param {Number} [options.min_cols] The minimum required columns.
+    *    @param {Number} [options.max_cols] The maximum columns possible (set to -1
+    *     for no maximum).
     *    @param {Number} [options.min_rows] The minimum required rows.
+    *    @param {Number} [options.max_rows] (Optional) The minimum required rows.
     *    @param {Number} [options.max_size_x] The maximum number of columns
     *     that a widget can span.
     *    @param {Boolean} [options.autogenerate_stylesheet] If true, all the
@@ -99,10 +103,9 @@
         this.options.widget_base_dimensions[0];
       this.min_widget_height = (this.options.widget_margins[1] * 2) +
         this.options.widget_base_dimensions[1];
+      this.instanceId = instanceCounter++;
       this.init();
     }
-
-    Gridster.generated_stylesheets = [];
 
     var fn = Gridster.prototype;
 
@@ -113,8 +116,9 @@
         this.$wrapper.addClass('ready');
         this.draggable();
 
-        $(window).bind(
-            'resize', throttle($.proxy(this.recalculate_faux_grid, this), 200));
+        this.on_window_resize = throttle($.proxy(this.recalculate_faux_grid, this), 200);
+
+        $(window).bind('resize', this.on_window_resize);
     };
 
 
@@ -194,7 +198,7 @@
 
 
 
-    /**
+     /**
     * Change the size of a widget.
     *
     * @method resize_widget
@@ -202,9 +206,10 @@
     *  representing the widget.
     * @param {Number} size_x The number of columns that will occupy the widget.
     * @param {Number} size_y The number of rows that will occupy the widget.
+    * @param {Function} callback Function executed when the widget is removed.
     * @return {HTMLElement} Returns $widget.
     */
-    fn.resize_widget = function($widget, size_x, size_y) {
+    fn.resize_widget = function($widget, size_x, size_y, callback) {
         var wgd = $widget.coords().grid;
         size_x || (size_x = wgd.size_x);
         size_y || (size_y = wgd.size_y);
@@ -323,6 +328,10 @@
             this.remove_empty_cells.apply(this, rows_to_remove_holes);
         }
 
+        if (callback) {
+            callback.call(this, size_x, size_y);
+        }
+
         return $widget;
     };
 
@@ -372,7 +381,7 @@
     * occupy.
     * @param {Number} size_y The number of rows that the group of cells
     * occupy.
-    * @param {HTMLElement} $exclude Exclude widgets from being moved.
+    * @param {HTMLElement} exclude Exclude widgets from being moved.
     * @return {Class} Returns the instance of the Gridster Class.
     */
     fn.remove_empty_cells = function(col, row, size_x, size_y, exclude) {
@@ -688,8 +697,8 @@
     * This function is executed when the player begins to be dragged.
     *
     * @method on_start_drag
-    * @param {Event} The original browser event
-    * @param {Object} A prepared ui object.
+    * @param {Event} event The original browser event
+    * @param {Object} ui A prepared ui object.
     */
     fn.on_start_drag = function(event, ui) {
 
@@ -739,8 +748,8 @@
     * This function is executed when the player is being dragged.
     *
     * @method on_drag
-    * @param {Event} The original browser event
-    * @param {Object} A prepared ui object.
+    * @param {Event} event The original browser event
+    * @param {Object} ui A prepared ui object.
     */
     fn.on_drag = function(event, ui) {
         //break if dragstop has been fired
@@ -782,8 +791,8 @@
     * This function is executed when the player stops being dragged.
     *
     * @method on_stop_drag
-    * @param {Event} The original browser event
-    * @param {Object} A prepared ui object.
+    * @param {Event} event The original browser event
+    * @param {Object} ui A prepared ui object.
     */
     fn.on_stop_drag = function(event, ui) {
         this.$helper.add(this.$player).add(this.$wrapper)
@@ -853,7 +862,7 @@
     */
     fn.on_overlapped_column_change = function(start_callback, stop_callback) {
         if (!this.colliders_data.length) {
-            return;
+            return this;
         }
         var cols = this.get_targeted_columns(
             this.colliders_data[0].el.data.col);
@@ -886,14 +895,14 @@
     *
     * @param {Function} start_callback Function executed when a new row begins
     *  to be overlapped. The row is passed as first argument.
-    * @param {Function} stop_callback Function executed when a row stops being
+    * @param {Function} end_callback Function executed when a row stops being
     *  overlapped. The row is passed as first argument.
     * @method on_overlapped_row_change
     * @return {Class} Returns the instance of the Gridster Class.
     */
     fn.on_overlapped_row_change = function(start_callback, end_callback) {
         if (!this.colliders_data.length) {
-            return;
+            return this;
         }
         var rows = this.get_targeted_rows(this.colliders_data[0].el.data.row);
         var last_n_rows = this.last_rows.length;
@@ -919,12 +928,11 @@
     /**
     * Sets the current position of the player
     *
-    * @param {Function} start_callback Function executed when a new row begins
-    *  to be overlapped. The row is passed as first argument.
-    * @param {Function} stop_callback Function executed when a row stops being
-    *  overlapped. The row is passed as first argument.
+    * @param {Number} col
+    * @param {Number} row
+    * @param {Boolean} no_player
     * @method set_player
-    * @return {Class} Returns the instance of the Gridster Class.
+    * @return {object}
     */
     fn.set_player = function(col, row, no_player) {
         var self = this;
@@ -1205,9 +1213,9 @@
     * a upper row and which not.
     *
     * @method widgets_contraints
-    * @param {HTMLElements} $widgets A jQuery wrapped collection of
+    * @param {jQuery} $widgets A jQuery wrapped collection of
     * HTMLElements.
-    * @return {Array} Returns a literal Object with two keys: `can_go_up` &
+    * @return {object} Returns a literal Object with two keys: `can_go_up` &
     * `can_not_go_up`. Each contains a set of HTMLElements.
     */
     fn.widgets_constraints = function($widgets) {
@@ -1327,7 +1335,7 @@
     * Depreciated.
     *
     * @method manage_movements
-    * @param {HTMLElements} $widgets A jQuery collection of HTMLElements
+    * @param {jQuery} $widgets A jQuery collection of HTMLElements
     *  representing the widgets you want to move.
     * @param {Number} to_col The column to which we want to move the widgets.
     * @param {Number} to_row The row to which we want to move the widgets.
@@ -1810,7 +1818,7 @@
     * Get widgets overlapping with the player.
     *
     * @method get_widgets_overlapped
-    * @return {HTMLElements} Returns a jQuery collection of HTMLElements.
+    * @return {jQuery} Returns a jQuery collection of HTMLElements.
     */
     fn.get_widgets_overlapped = function() {
         var $w;
@@ -1843,7 +1851,7 @@
     *
     * @method on_start_overlapping_column
     * @param {Number} col The collided column.
-    * @return {HTMLElements} Returns a jQuery collection of HTMLElements.
+    * @return {jQuery} Returns a jQuery collection of HTMLElements.
     */
     fn.on_start_overlapping_column = function(col) {
         this.set_player(col, false);
@@ -1854,8 +1862,8 @@
     * A callback executed when the player begins to collide with a row.
     *
     * @method on_start_overlapping_row
-    * @param {Number} col The collided row.
-    * @return {HTMLElements} Returns a jQuery collection of HTMLElements.
+    * @param {Number} row The collided row.
+    * @return {jQuery} Returns a jQuery collection of HTMLElements.
     */
     fn.on_start_overlapping_row = function(row) {
         this.set_player(false, row);
@@ -1867,7 +1875,7 @@
     *
     * @method on_stop_overlapping_column
     * @param {Number} col The collided row.
-    * @return {HTMLElements} Returns a jQuery collection of HTMLElements.
+    * @return {jQuery} Returns a jQuery collection of HTMLElements.
     */
     fn.on_stop_overlapping_column = function(col) {
         //this.set_player(col, false);
@@ -1886,7 +1894,7 @@
     *
     * @method on_stop_overlapping_row
     * @param {Number} row The collided row.
-    * @return {HTMLElements} Returns a jQuery collection of HTMLElements.
+    * @return {jQuery} Returns a jQuery collection of HTMLElements.
     */
     fn.on_stop_overlapping_row = function(row) {
         //this.set_player(false, row);
@@ -2017,9 +2025,9 @@
     * Move down the specified widget and all below it.
     *
     * @method move_widget_down
-    * @param {HTMLElement} $widget The jQuery object representing the widget
+    * @param {jQuery} $widget The jQuery object representing the widget
     *  you want to move.
-    * @param {Number} The number of cells that the widget has to move.
+    * @param {Number} y_units The number of cells that the widget has to move.
     * @return {Class} Returns the instance of the Gridster Class.
     */
     fn.move_widget_down = function($widget, y_units) {
@@ -2155,7 +2163,7 @@
     *
     * @method widgets_below
     * @param {HTMLElement} $el The jQuery wrapped HTMLElement.
-    * @return {HTMLElements} A jQuery collection of HTMLElements.
+    * @return {jQuery} A jQuery collection of HTMLElements.
     */
     fn.widgets_below = function($el) {
         var el_grid_data = $.isPlainObject($el) ? $el : $el.coords().grid;
@@ -2611,14 +2619,6 @@
         opts.min_widget_height = (opts.widget_margins[1] * 2) +
             opts.widget_base_dimensions[1];
 
-        // don't duplicate stylesheets for the same configuration
-        var serialized_opts = $.param(opts);
-        if ($.inArray(serialized_opts, Gridster.generated_stylesheets) >= 0) {
-            return false;
-        }
-
-        Gridster.generated_stylesheets.push(serialized_opts);
-
         /* generate CSS styles for cols */
         for (i = opts.cols; i >= 0; i--) {
             styles += (opts.namespace + ' [data-col="'+ (i + 1) + '"] { left:' +
@@ -2664,6 +2664,7 @@
 
       d.getElementsByTagName('head')[0].appendChild(tag);
       tag.setAttribute('type', 'text/css');
+      tag.setAttribute('id', this.options.style_tag_id_prefix + this.instanceId);
 
       if (tag.styleSheet) {
         tag.styleSheet.cssText = css;
@@ -2671,6 +2672,17 @@
         tag.appendChild(document.createTextNode(css));
       }
       return this;
+    };
+
+
+    /**
+    * Remove the style tag with the associated id from the head of the document
+    *
+    * @method  remove_style_tag
+    * @return {Object} Returns the instance of the Gridster class.
+    */
+    fn.remove_style_tag = function() {
+        $('#' + this.options.style_tag_id_prefix + this.instanceId).remove();
     };
 
 
@@ -2850,8 +2862,20 @@
         });
 
         this.cols = Math.max(min_cols, cols, this.options.min_cols);
-        //this.rows = Math.max(max_rows, this.options.min_rows);
-        this.rows = this.options.max_rows;
+
+        var max_cols = this.options.max_cols;
+        if (max_cols >= -1 && max_cols >= min_cols) {
+            if (max_cols < this.cols) {
+                this.cols = max_cols;
+            }
+        }
+
+        //Optionally check for Max Rows
+        if(typeof this.options.max_rows != "undefined"){
+            this.rows = this.options.max_rows;
+        } else {
+            this.rows = Math.max(max_rows, this.options.min_rows);
+        }
 
         this.baseX = ($(window).width() - aw) / 2;
         this.baseY = this.$wrapper.offset().top;
@@ -2861,6 +2885,28 @@
         }
 
         return this.generate_faux_grid(this.rows, this.cols);
+    };
+
+    /**
+     * Destroy this gridster by removing any sign of its presence, making it easy to avoid memory leaks
+     *
+     * @method destroy
+     * @return {undefined}
+     */
+    fn.destroy = function(){
+        // remove bound callback on window resize
+        $(window).unbind('resize', this.on_window_resize);
+
+        if(this.drag_api){
+            this.drag_api.destroy();
+        }
+
+        this.remove_style_tag();
+
+        // lastly, remove gridster element
+        // this will additionally cause any data associated to this element to be removed, including this
+        // very gridster instance
+        this.$el.remove();
     };
 
 
