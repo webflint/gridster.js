@@ -22,6 +22,11 @@ module.exports = function(grunt) {
         dest: 'dist/<%= pkg.name %>.with-extras.js'
       },
 
+      dist_extras_growing: {
+        src: ['<banner:meta.banner>', 'src/jquery.coords.js', 'src/jquery.collision.js', 'src/utils.js', 'src/jquery.draggable.js', 'src/<%= pkg.name %>.js', 'src/<%= pkg.name %>.growing.js'],
+        dest: 'dist/<%= pkg.name %>.with-growing.js'
+      },
+
       dist_css: {
         src: ['<banner:meta.banner>', 'src/<%= pkg.name %>.css'],
         dest: 'dist/<%= pkg.name %>.css'
@@ -52,6 +57,12 @@ module.exports = function(grunt) {
       dist_extras: {
         files: {
           'dist/<%= pkg.name %>.with-extras.min.js': ['dist/<%= pkg.name %>.with-extras.js']
+        }
+      },
+
+      dist_growing: {
+        files: {
+          'dist/<%= pkg.name %>.with-growing.min.js': ['dist/<%= pkg.name %>.with-growing.js']
         }
       },
 
