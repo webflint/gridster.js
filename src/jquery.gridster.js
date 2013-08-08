@@ -21,6 +21,7 @@
         min_rows: 15,
         max_rows: 15,
         max_size_x: 6,
+        constrained: false,
         autogenerate_stylesheet: true,
         avoid_overlapped_widgets: true,
         shift_larger_widgets_down: true,
@@ -184,8 +185,10 @@
 
         this.register_widget($w);
 
-        this.add_faux_rows(pos.size_y);
-        //this.add_faux_cols(pos.size_x);
+        if(!this.options.constrained) {
+            this.add_faux_rows(pos.size_y);
+            //this.add_faux_cols(pos.size_x);
+        }
 
         this.set_dom_grid_height();
 
@@ -284,19 +287,22 @@
         this.add_to_gridmap(new_grid_data, $widget);
 
         //update coords instance attributes
-        $widget.data('coords').update({
-            width: (size_x * this.options.widget_base_dimensions[0] +
-                ((size_x - 1) * this.options.widget_margins[0]) * 2),
-            height: (size_y * this.options.widget_base_dimensions[1] +
-                ((size_y - 1) * this.options.widget_margins[1]) * 2)
-        });
+        if (!this.options.constrained) {
+            $widget.data('coords').update({
+                width: (size_x * this.options.widget_base_dimensions[0] +
+                    ((size_x - 1) * this.options.widget_margins[0]) * 2),
+                height: (size_y * this.options.widget_base_dimensions[1] +
+                    ((size_y - 1) * this.options.widget_margins[1]) * 2)
+            });
 
-        if (size_y > old_size_y) {
-            this.add_faux_rows(size_y - old_size_y);
-        }
+            if (size_y > old_size_y) {
+                this.add_faux_rows(size_y - old_size_y);
+            }
 
-        if (size_x > old_size_x) {
-            this.add_faux_cols(size_x - old_size_x);
+            if (size_x > old_size_x) {
+                this.add_faux_cols(size_x - old_size_x);
+            }
+
         }
 
         $widget.attr({
@@ -566,7 +572,7 @@
         ) {
             /*if(!$el.hasClass('.disp_ad')){
                 $el.remove();
-                return false;   
+                return false;
             }*/
             wgd = this.next_position(wgd.size_x, wgd.size_y);
             wgd.el = $el;
@@ -700,9 +706,10 @@
         this.placeholder_grid_data = $.extend({}, this.player_grid_data);
 
         //set new grid height along the dragging period
-        this.$el.css('height', this.$el.height() +
-          (this.player_grid_data.size_y * this.min_widget_height));
-
+        if (!this.options.constrained) {
+            this.$el.css('height', this.$el.height() +
+              (this.player_grid_data.size_y * this.min_widget_height));
+        }
         var colliders = this.faux_grid;
         var coords = this.$player.data('coords').coords;
 
@@ -958,7 +965,7 @@
         var placeholder_cells = this.cells_occupied_by_placeholder;
         var $gr = this;
 
-        
+
         //Queue Swaps
         $overlapped_widgets.each($.proxy(function(i, w){
             var $w = $(w);
@@ -1087,7 +1094,7 @@
                 }
             }
         }
-        
+
         return occupied;
     }
 
@@ -1167,10 +1174,10 @@
 
                     }
                 }
-                    
+
             }
         }
-    
+
         return queued
     }
 
@@ -1180,7 +1187,7 @@
 
         if ((key in this.w_queue)){
             if (this.w_queue[key] == "full"){
-               queued = true; 
+               queued = true;
             } else {
                 $tw = this.w_queue[key];
                 tgd = $tw.coords().grid;
@@ -1194,7 +1201,7 @@
                     queued = true;
                 }
             }
-        } 
+        }
 
         return queued;
     }
@@ -1608,7 +1615,7 @@
                 if (can_go_widget_up) {
                     this.move_widget_to($w, can_go_widget_up);
                 }
-                
+
             }, this));
         }
 
