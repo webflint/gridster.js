@@ -50,6 +50,7 @@
 
     this.new_move_widget_to($widget, newCoords.col, newCoords.row);
     this.resize_widget($widget, newCoords.size_x, newCoords.size_y);
+    this.$el.trigger('gridster:grew', {$active: $widget, $removed: $targets});
     this.$el.trigger('gridster:change');
 
     return this;
@@ -58,14 +59,15 @@
 
   fn.shrink = function($widget) {
     var wgd = $widget.coords().grid;
-    if (wgd.size_x < 2 || wgd.size_y < 2) return;
 
+    if (wgd.size_x < 2 || wgd.size_y < 2) return this;
+
+    var $added = $([]);
     var rows = wgd.size_y - 1;
     var cols = wgd.size_x - 1;
 
     this.resize_widget($widget, 1, 1);
 
-    var $added = $([]);
     while (cols) {
       for (var i = rows; i >= 0; i--) {
         $added.push(this.add_widget($widget.clone(), 1, 1, wgd.col + cols, wgd.row + i));
@@ -76,9 +78,10 @@
       $added.push(this.add_widget($widget.clone(), 1, 1, wgd.col, wgd.row + rows));
       --rows;
     }
+    this.$el.trigger('gridster:shrunk', {$active: $widget, $added: $added});
     this.$el.trigger('gridster:change');
 
-    return $added;
+    return this;
   };
 
   fn.intersection_at = function(grid, col, row) {
